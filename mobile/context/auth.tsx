@@ -1,10 +1,15 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+import { registerForPushNotificationsAsync } from '../utils/notifications';
+import { api } from '../services/api';
 
 type User = {
     id: string;
     plate: string;
     email?: string;
+    pushToken?: string;
 };
 
 type AuthContextType = {
@@ -22,9 +27,6 @@ const AuthContext = createContext<AuthContextType>({
 export function useAuth() {
     return useContext(AuthContext);
 }
-
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -53,10 +55,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loadSession();
     }, []);
 
-    const signIn = (userData: User) => {
+    const signIn = async (userData: User) => {
         setUser(userData);
         if (Platform.OS !== 'web') {
             SecureStore.setItemAsync('user', JSON.stringify(userData)).catch(console.error);
+
+            // Register for push notifications
+            try {
+                const token = await registerForPushNotificationsAsync();
+                if (token) {
+                    // Update token in backend
+                    await api.updatePushToken(userData.id, token);
+                }
+            } catch (error) {
+                console.error('Error registering push token:', error);
+            }
         }
         router.replace('/(tabs)/search');
     };

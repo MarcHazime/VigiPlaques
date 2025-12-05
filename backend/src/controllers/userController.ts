@@ -72,6 +72,23 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 };
 
+export const updatePushToken = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { pushToken } = req.body;
+
+    try {
+        await prisma.user.update({
+            where: { id },
+            data: { pushToken },
+        });
+
+        res.json({ message: 'Push token updated' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 export const deleteUser = async (req: Request, res: Response) => {
     const { id } = req.params;
 

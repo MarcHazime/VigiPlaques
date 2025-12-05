@@ -103,6 +103,19 @@ export const api = {
         return response.json();
     },
 
+    async updatePushToken(userId: string, pushToken: string) {
+        const response = await fetch(`${BASE_URL}/users/${userId}/push-token`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pushToken }),
+        });
+        if (!response.ok) {
+            // fail silently or log
+            console.error('Failed to update push token');
+        }
+        return response.json();
+    },
+
     async getVehicleInfo(plate: string) {
         const response = await fetch(`${BASE_URL}/siv/${plate}`);
         if (!response.ok) {
