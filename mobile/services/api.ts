@@ -92,6 +92,17 @@ export const api = {
         return response.json();
     },
 
+    async deleteUser(userId: string) {
+        const response = await fetch(`${BASE_URL}/users/${userId}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Delete failed');
+        }
+        return response.json();
+    },
+
     async getVehicleInfo(plate: string) {
         const response = await fetch(`${BASE_URL}/siv/${plate}`);
         if (!response.ok) {

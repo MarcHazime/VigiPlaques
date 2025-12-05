@@ -71,3 +71,28 @@ export const updateUser = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+export const deleteUser = async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    try {
+        // Delete messages first to maintain referential integrity
+        await prisma.message.deleteMany({
+            where: {
+                OR: [
+                    { senderId: id },
+                    { receiverId: id }
+                ]
+            }
+        });
+
+        await prisma.user.delete({
+            where: { id },
+        });
+
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};

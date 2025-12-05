@@ -6,7 +6,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function Profile() {
-    const { user, signIn } = useAuth();
+    const { user, signIn, signOut } = useAuth();
     const [plate, setPlate] = useState(user?.plate || '');
     const [email, setEmail] = useState(user?.email || '');
     const [password, setPassword] = useState('');
@@ -36,6 +36,31 @@ export default function Profile() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            'Supprimer mon compte',
+            'Êtes-vous sûr de vouloir supprimer définitivement votre compte ? Cette action est irréversible.',
+            [
+                { text: 'Annuler', style: 'cancel' },
+                {
+                    text: 'Supprimer',
+                    style: 'destructive',
+                    onPress: async () => {
+                        if (!user) return;
+                        try {
+                            setLoading(true);
+                            await api.deleteUser(user.id);
+                            signOut();
+                        } catch (error: any) {
+                            Alert.alert('Erreur', error.message);
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     return (
@@ -89,6 +114,14 @@ export default function Profile() {
                         disabled={loading}
                     >
                         <Text style={styles.buttonText}>{loading ? 'Mise à jour...' : 'Enregistrer'}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={handleDeleteAccount}
+                        disabled={loading}
+                    >
+                        <Text style={styles.deleteButtonText}>Supprimer mon compte</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -156,6 +189,16 @@ const styles = StyleSheet.create({
     buttonText: {
         color: COLORS.surface,
         fontSize: 18,
+        fontWeight: 'bold',
+    },
+    deleteButton: {
+        marginTop: SPACING.l,
+        padding: SPACING.m,
+        alignItems: 'center',
+    },
+    deleteButtonText: {
+        color: COLORS.error,
+        fontSize: 16,
         fontWeight: 'bold',
     },
 });
