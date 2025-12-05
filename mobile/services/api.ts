@@ -2,16 +2,20 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 const getBaseUrl = () => {
-    if (Platform.OS === 'web') return 'http://localhost:3000/api';
+    if (__DEV__) {
+        if (Platform.OS === 'web') return 'http://localhost:3000/api';
 
-    const debuggerHost = Constants.expoConfig?.hostUri;
-    const localhost = debuggerHost?.split(':')[0];
+        const debuggerHost = Constants.expoConfig?.hostUri;
+        const localhost = debuggerHost?.split(':')[0];
 
-    if (!localhost) {
-        return 'http://localhost:3000/api';
+        if (!localhost) {
+            return 'http://localhost:3000/api';
+        }
+
+        return `http://${localhost}:3000/api`;
     }
 
-    return `http://${localhost}:3000/api`;
+    return 'https://vigiplaques-production.up.railway.app/api';
 };
 
 const BASE_URL = getBaseUrl();
