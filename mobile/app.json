@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -50,7 +50,15 @@
           }
         }
       ],
-      "expo-secure-store"
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "$(PRODUCT_NAME) needs access to your Camera to scan plates.",
+          "enableCodeScanner": true
+        }
+      ],
+      "expo-secure-store",
+      "expo-notifications"
     ],
     "extra": {
       "router": {},

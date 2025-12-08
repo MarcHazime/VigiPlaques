@@ -1,29 +1,60 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView, Image } from 'react-native';
-import { useState } from 'react';
-import { api } from '../../services/api';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Modal, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
-import { Ionicons } from '@expo/vector-icons';
+import { api } from '../../services/api';
+import Scanner from '../../components/Scanner';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Search() {
     // Search screen component
-    const [query, setQuery] = useState('');
-    const [result, setResult] = useState<any>(null);
+    const [plate, setPlate] = useState('');
+    const [resultPlate, setResultPlate] = useState(''); // Separate state for displayed result
+    const [vehicle, setVehicle] = useState<any>(null); // Renamed from result
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [error, setError] = useState<string | null>(null); // Changed type to allow null
     const router = useRouter();
 
+    const [recentSearches, setRecentSearches] = useState<string[]>([]);
+    const [showScanner, setShowScanner] = useState(false);
+
+    useEffect(() => {
+        loadRecentSearches();
+    }, []);
+
+    const loadRecentSearches = async () => {
+        if (Platform.OS !== 'web') {
+            const saved = await SecureStore.getItemAsync('recent_searches');
+            if (saved) {
+                setRecentSearches(JSON.parse(saved));
+            }
+        }
+    };
+
+    const saveRecentSearch = async (plate: string) => {
+        if (Platform.OS === 'web') return;
+
+        const newRecent = [plate, ...recentSearches.filter(p => p !== plate)].slice(0, 5);
+        setRecentSearches(newRecent);
+        await SecureStore.setItemAsync('recent_searches', JSON.stringify(newRecent));
+    };
+
     const handleSearch = async () => {
-        if (!query) return;
+        if (!plate.trim()) return;
+
         setLoading(true);
-        setError('');
-        setResult(null);
+        setError(null);
+        setVehicle(null);
         try {
             // Use getVehicleInfo instead of searchUser
-            const data = await api.getVehicleInfo(query);
+            const data = await api.getVehicleInfo(plate);
             if (data) {
-                setResult(data);
+                setVehicle(data);
+                setResultPlate(plate); // Lock the displayed plate
+                saveRecentSearch(plate);
             } else {
                 setError('Véhicule non trouvé');
             }
@@ -34,14 +65,21 @@ export default function Search() {
         }
     };
 
+    const handleScan = (scannedPlate: string) => {
+        setShowScanner(false);
+        setPlate(scannedPlate);
+        // Optional: auto-trigger search
+        // handleSearch(); 
+    };
+
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={COLORS.primaryGradient}
+                colors={COLORS.primaryGradient as any}
                 style={styles.headerBackground}
             />
             <SafeAreaView style={styles.safeArea}>
-                <View style={styles.content}>
+                <ScrollView contentContainerStyle={styles.content}>
                     <View style={styles.header}>
                         <Image
                             source={require('../../assets/images/logo.png')}
@@ -58,26 +96,31 @@ export default function Search() {
                                 style={styles.input}
                                 placeholder="Plaque (ex: AA-123-BB)"
                                 placeholderTextColor={COLORS.textSecondary}
-                                value={query}
-                                onChangeText={setQuery}
+                                value={plate}
+                                onChangeText={setPlate}
                                 autoCapitalize="characters"
                                 onSubmitEditing={handleSearch}
                             />
+                            <TouchableOpacity onPress={() => setShowScanner(true)} style={styles.scanButton}>
+                                <Ionicons name="camera" size={24} color={COLORS.primary} />
+                            </TouchableOpacity>
                         </View>
 
-                        <TouchableOpacity onPress={handleSearch}>
+                        <TouchableOpacity onPress={handleSearch} disabled={loading}>
                             <LinearGradient
-                                colors={COLORS.primaryGradient}
+                                colors={COLORS.primaryGradient as any}
                                 style={styles.searchButton}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 0 }}
                             >
-                                <Ionicons name="arrow-forward" size={24} color={COLORS.surface} />
+                                {loading ? (
+                                    <ActivityIndicator color={COLORS.surface} />
+                                ) : (
+                                    <Ionicons name="arrow-forward" size={24} color={COLORS.surface} />
+                                )}
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
-
-                    {loading && <ActivityIndicator size="large" color={COLORS.surface} style={styles.loader} />}
 
                     {error ? (
                         <View style={styles.errorContainer}>
@@ -86,7 +129,7 @@ export default function Search() {
                         </View>
                     ) : null}
 
-                    {result && (
+                    {vehicle && (
                         <View style={styles.resultCard}>
                             <View style={styles.plateContainer}>
                                 <View style={styles.plateIcon}>
@@ -94,33 +137,33 @@ export default function Search() {
                                 </View>
                                 <View>
                                     <Text style={styles.plateLabel}>Immatriculation</Text>
-                                    <Text style={styles.plateText}>{result.data?.immatriculation || query}</Text>
+                                    <Text style={styles.plateText}>{vehicle.data?.immatriculation || resultPlate}</Text>
                                 </View>
                             </View>
 
                             <View style={styles.detailsContainer}>
                                 <View style={styles.detailRow}>
                                     <Text style={styles.detailLabel}>Marque</Text>
-                                    <Text style={styles.detailText}>{result.data?.marque || 'N/A'}</Text>
+                                    <Text style={styles.detailText}>{vehicle.data?.marque || 'N/A'}</Text>
                                 </View>
                                 <View style={styles.detailRow}>
                                     <Text style={styles.detailLabel}>Modèle</Text>
-                                    <Text style={styles.detailText}>{result.data?.modele || 'N/A'}</Text>
+                                    <Text style={styles.detailText}>{vehicle.data?.modele || 'N/A'}</Text>
                                 </View>
                                 <View style={styles.detailRow}>
                                     <Text style={styles.detailLabel}>Carburant</Text>
-                                    <Text style={styles.detailText}>{result.data?.energie || 'N/A'}</Text>
+                                    <Text style={styles.detailText}>{vehicle.data?.energie || 'N/A'}</Text>
                                 </View>
                                 <View style={styles.detailRow}>
                                     <Text style={styles.detailLabel}>Année</Text>
-                                    <Text style={styles.detailText}>{result.data?.date_1er_cir ? result.data.date_1er_cir.split('-')[0] : 'N/A'}</Text>
+                                    <Text style={styles.detailText}>{vehicle.data?.date_1er_cir ? vehicle.data.date_1er_cir.split('-')[0] : 'N/A'}</Text>
                                 </View>
                             </View>
 
-                            {result.registeredUser ? (
-                                <TouchableOpacity onPress={() => router.push(`/chat/${result.registeredUser.id}`)}>
+                            {vehicle.registeredUser ? (
+                                <TouchableOpacity onPress={() => router.push(`/chat/${vehicle.registeredUser.id}`)}>
                                     <LinearGradient
-                                        colors={COLORS.primaryGradient}
+                                        colors={COLORS.primaryGradient as any}
                                         style={styles.messageButton}
                                         start={{ x: 0, y: 0 }}
                                         end={{ x: 1, y: 0 }}
@@ -137,7 +180,12 @@ export default function Search() {
                             )}
                         </View>
                     )}
-                </View>
+
+                    <Modal visible={showScanner} animationType="slide" onRequestClose={() => setShowScanner(false)}>
+                        <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
+                    </Modal>
+
+                </ScrollView>
             </SafeAreaView>
         </View>
     );
@@ -194,6 +242,9 @@ const styles = StyleSheet.create({
     },
     searchIcon: {
         marginRight: SPACING.s,
+    },
+    scanButton: {
+        padding: SPACING.s,
     },
     input: {
         flex: 1,

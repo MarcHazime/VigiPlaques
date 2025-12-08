@@ -1,26 +1,36 @@
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+// Lazy load Notifications to avoid crash in Expo Go (SDK 53+)
+let Notifications: any;
+try {
+    if (Constants.appOwnership !== 'expo') {
+        Notifications = require('expo-notifications');
+    }
+} catch (e) {
+    console.log('expo-notifications not available');
+}
+
 // Safely setup handler, might fail in Expo Go
 try {
-    Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-            shouldShowAlert: true,
-            shouldPlaySound: true,
-            shouldSetBadge: false,
-            shouldShowBanner: true,
-            shouldShowList: true
-        }),
-    });
+    if (Notifications) {
+        Notifications.setNotificationHandler({
+            handleNotification: async () => ({
+                shouldShowAlert: true,
+                shouldPlaySound: true,
+                shouldSetBadge: false,
+                shouldShowBanner: true,
+                shouldShowList: true
+            }),
+        });
+    }
 } catch (error) {
-    console.warn('Failed to set notification handler (likely Expo Go limitation):', error);
+    console.warn('Failed to set notification handler:', error);
 }
 
 export async function registerForPushNotificationsAsync() {
-    // Check if running in Expo Go
-    if (Constants.appOwnership === 'expo') {
+    if (Constants.appOwnership === 'expo' || !Notifications) {
         console.log('Skipping Push Notification registration (not supported in Expo Go)');
         return null;
     }
