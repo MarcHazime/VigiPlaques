@@ -42,8 +42,8 @@ export default function Register() {
                             style={styles.logo}
                             resizeMode="contain"
                         />
-                        <Text style={styles.title}>Rejoindre VigiPlaque</Text>
-                        <Text style={styles.subtitle}>Créer votre compte</Text>
+                        <Text style={styles.title}>Rejoindre Plaq'Up</Text>
+                        <Text style={styles.subtitle}>Créer votre compte citoyen</Text>
                     </View>
 
                     <View style={styles.form}>

@@ -10,14 +10,61 @@ export const getChatHistory = async (req: Request, res: Response) => {
         const messages = await prisma.message.findMany({
             where: {
                 OR: [
-                    { senderId: userId1, receiverId: userId2 },
-                    { senderId: userId2, receiverId: userId1 },
+                    {
+                        senderId: userId1,
+                        receiverId: userId2,
+                        deletedBySender: false // User1 is sender, shouldn't see if deleted
+                    },
+                    {
+                        senderId: userId2,
+                        receiverId: userId1,
+                        deletedByReceiver: false // User1 is receiver, shouldn't see if deleted
+                    },
                 ],
             },
             orderBy: { createdAt: 'asc' },
         });
 
-        res.json(messages);
+        // The query above is slightly wrong because "deletedBySender" refers to the *sender* of the message.
+        // If I am userId1 calling this, I want to see messages:
+        // 1. Sent by userId1 TO userId2 AND NOT deletedBySender
+        // 2. Sent by userId2 TO userId1 AND NOT deletedByReceiver
+
+        // Wait, the AND logic in OR block is tricky. Let's precise it:
+        const finalMessages = await prisma.message.findMany({
+            where: {
+                OR: [
+                    { senderId: userId1, receiverId: userId2, deletedBySender: false },
+                    { senderId: userId2, receiverId: userId1, deletedByReceiver: false }
+                ]
+            },
+            orderBy: { createdAt: 'asc' }
+        });
+
+        res.json(finalMessages);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const deleteConversation = async (req: Request, res: Response) => {
+    const { userId, partnerId } = req.params;
+
+    try {
+        // Mark messages sent by userId as deletedBySender
+        await prisma.message.updateMany({
+            where: { senderId: userId, receiverId: partnerId },
+            data: { deletedBySender: true }
+        });
+
+        // Mark messages received by userId as deletedByReceiver
+        await prisma.message.updateMany({
+            where: { senderId: partnerId, receiverId: userId },
+            data: { deletedByReceiver: true }
+        });
+
+        res.json({ message: 'Conversation deleted' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
@@ -33,12 +80,18 @@ export const getUserChats = async (req: Request, res: Response) => {
     // Simplified: Find all unique users this user has exchanged messages with.
     try {
         const sent = await prisma.message.findMany({
-            where: { senderId: userId },
+            where: {
+                senderId: userId,
+                deletedBySender: false
+            },
             select: { receiver: true },
             distinct: ['receiverId']
         });
         const received = await prisma.message.findMany({
-            where: { receiverId: userId },
+            where: {
+                receiverId: userId,
+                deletedByReceiver: false
+            },
             select: { sender: true },
             distinct: ['senderId']
         });

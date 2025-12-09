@@ -42,8 +42,8 @@ export default function Login() {
                             style={styles.logo}
                             resizeMode="contain"
                         />
-                        <Text style={styles.title}>VigiPlaque</Text>
-                        <Text style={styles.subtitle}>Messagerie Sécurisée par Plaque</Text>
+                        <Text style={styles.title}>Plaq'Up</Text>
+                        <Text style={styles.subtitle}>Connectez-vous par plaque</Text>
                     </View>
 
                     <View style={styles.form}>
@@ -72,6 +72,10 @@ export default function Login() {
                                 secureTextEntry
                             />
                         </View>
+
+                        <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')} style={{ alignSelf: 'flex-end', marginBottom: 20 }}>
+                            <Text style={{ color: COLORS.primary, fontWeight: '600' }}>Mot de passe oublié ?</Text>
+                        </TouchableOpacity>
 
                         <TouchableOpacity style={styles.button} onPress={handleLogin}>
                             <LinearGradient

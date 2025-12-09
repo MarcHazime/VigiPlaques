@@ -13,11 +13,18 @@ model User {
   email     String?  @unique
   password  String
   pushToken String?
+  
+  resetToken        String?
+  resetTokenExpires DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
+  
+  blocksInitiated Block[] @relation("BlocksInitiated")
+  blocksReceived  Block[] @relation("BlocksReceived")
 }
 
 model Message {
@@ -31,6 +38,22 @@ model Message {
   
   receiverId String
   receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  deletedBySender   Boolean @default(false)
+  deletedByReceiver Boolean @default(false)
+}
+
+model Block {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  blockerId String
+  blocker   User     @relation("BlocksInitiated", fields: [blockerId], references: [id])
+
+  blockedId String
+  blocked   User     @relation("BlocksReceived", fields: [blockedId], references: [id])
+
+  @@unique([blockerId, blockedId])
 }
 
 

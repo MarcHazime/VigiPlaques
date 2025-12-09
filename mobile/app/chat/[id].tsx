@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
@@ -16,6 +16,8 @@ export default function Chat() {
     const [input, setInput] = useState('');
     const [partnerPlate, setPartnerPlate] = useState('');
     const [uploading, setUploading] = useState(false);
+    const [isBlockedByMe, setIsBlockedByMe] = useState(false);
+    const [isBlockedByPartner, setIsBlockedByPartner] = useState(false);
     const flatListRef = useRef<FlatList>(null);
     const router = useRouter();
 
@@ -32,7 +34,20 @@ export default function Chat() {
                 setPartnerPlate('Unknown User');
             }
         };
+
+        // Check block status
+        const checkBlock = async () => {
+            try {
+                const status = await api.getBlockStatus(user.id, id);
+                setIsBlockedByMe(status.blockedByMe);
+                setIsBlockedByPartner(status.blockedByOther);
+            } catch (error) {
+                console.error('Error checking block status:', error);
+            }
+        };
+
         fetchPartner();
+        checkBlock();
 
         // Connect socket
         socket.connect();
@@ -52,8 +67,14 @@ export default function Chat() {
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         });
 
+        socket.on('message_error', (data) => {
+            // alert(data.error); // Removed alert as requested
+            console.log("Message error: ", data.error);
+        });
+
         return () => {
             socket.off('receive_message');
+            socket.off('message_error');
             socket.disconnect();
         };
     }, [id, user]);
@@ -69,8 +90,77 @@ export default function Chat() {
         }
     };
 
+    const handleOptions = () => {
+        Alert.alert(
+            "Options",
+            `Action pour ${partnerPlate}`,
+            [
+                {
+                    text: isBlockedByMe ? "Débloquer" : "Bloquer",
+                    onPress: isBlockedByMe ? handleUnblock : handleBlock,
+                    style: isBlockedByMe ? 'default' : 'destructive'
+                },
+                {
+                    text: "Supprimer la conversation",
+                    onPress: handleDeleteConversation,
+                    style: 'destructive'
+                },
+                { text: "Annuler", style: "cancel" }
+            ]
+        );
+    };
+
+    const handleBlock = async () => {
+        if (!user || !id) return;
+        try {
+            await api.blockUser(user.id, id);
+            setIsBlockedByMe(true);
+            Alert.alert("Succès", `${partnerPlate} a été bloqué.`);
+        } catch (error) {
+            Alert.alert("Erreur", "Impossible de bloquer l'utilisateur.");
+        }
+    };
+
+    const handleUnblock = async () => {
+        if (!user || !id) return;
+        try {
+            await api.unblockUser(user.id, id);
+            setIsBlockedByMe(false);
+            Alert.alert("Succès", `${partnerPlate} a été débloqué.`);
+        } catch (error) {
+            Alert.alert("Erreur", "Impossible de débloquer l'utilisateur.");
+        }
+    };
+
+    const handleDeleteConversation = async () => {
+        if (!user || !id) return;
+        Alert.alert(
+            "Confirmation",
+            "Voulez-vous vraiment supprimer cette conversation pour vous ? L'autre utilisateur conservera son historique.",
+            [
+                { text: "Annuler", style: "cancel" },
+                {
+                    text: "Supprimer",
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await api.deleteConversation(user.id, id);
+                            router.back();
+                        } catch (error) {
+                            Alert.alert("Erreur", "Impossible de supprimer la conversation.");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const sendMessage = (content: string, imageUrl?: string) => {
         if ((!content.trim() && !imageUrl) || !user || !id) return;
+        if (isBlockedByMe) {
+            Alert.alert("Action impossible", "Vous avez bloqué cet utilisateur. Débloquez-le pour répondre.");
+            return;
+        }
 
         const tempId = Date.now().toString();
         const message = {
@@ -123,17 +213,34 @@ export default function Chat() {
         }
     };
 
+    const isBlocked = isBlockedByMe || isBlockedByPartner;
+
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color={COLORS.text} />
                 </TouchableOpacity>
-                <View>
+                <View style={{ flex: 1 }}>
                     <Text style={styles.headerTitle}>Discussion avec</Text>
                     <Text style={styles.headerSubtitle}>{partnerPlate || 'Chargement...'}</Text>
                 </View>
+                <TouchableOpacity onPress={handleOptions} style={{ padding: 8 }}>
+                    <Ionicons name="ellipsis-vertical" size={24} color={COLORS.text} />
+                </TouchableOpacity>
             </View>
+
+            {isBlockedByMe && (
+                <View style={{ backgroundColor: '#FEF2F2', padding: 8, alignItems: 'center' }}>
+                    <Text style={{ color: COLORS.error, fontSize: 12 }}>Vous avez bloqué cet utilisateur</Text>
+                </View>
+            )}
+
+            {isBlockedByPartner && (
+                <View style={{ backgroundColor: '#FEF2F2', padding: 8, alignItems: 'center' }}>
+                    <Text style={{ color: COLORS.error, fontSize: 12 }}>Cet utilisateur vous a bloqué</Text>
+                </View>
+            )}
 
             <FlatList
                 ref={flatListRef}
@@ -176,11 +283,11 @@ export default function Chat() {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, isBlocked && { opacity: 0.5 }]}>
                     <TouchableOpacity
                         style={styles.attachButton}
                         onPress={pickImage}
-                        disabled={uploading}
+                        disabled={uploading || isBlocked}
                     >
                         {uploading ? (
                             <ActivityIndicator size="small" color={COLORS.textSecondary} />
@@ -193,14 +300,15 @@ export default function Chat() {
                         style={styles.input}
                         value={input}
                         onChangeText={setInput}
-                        placeholder="Écrire un message..."
+                        placeholder={isBlockedByMe ? "Vous avez bloqué cet utilisateur" : isBlockedByPartner ? "Cet utilisateur vous a bloqué" : "Écrire un message..."}
                         placeholderTextColor={COLORS.textSecondary}
                         multiline
+                        editable={!isBlocked}
                     />
                     <TouchableOpacity
-                        style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]}
+                        style={[styles.sendButton, (!input.trim() || isBlocked) && styles.sendButtonDisabled]}
                         onPress={() => sendMessage(input)}
-                        disabled={!input.trim()}
+                        disabled={!input.trim() || isBlocked}
                     >
                         <Ionicons name="send" size={20} color={COLORS.surface} />
                     </TouchableOpacity>

@@ -86,7 +86,7 @@ export default function Search() {
                             style={styles.headerLogo}
                             resizeMode="contain"
                         />
-                        <Text style={styles.title}>VigiPlaque</Text>
+                        <Text style={styles.title}>Plaq'Up</Text>
                     </View>
 
                     <View style={styles.searchContainer}>
@@ -175,7 +175,7 @@ export default function Search() {
                             ) : (
                                 <View style={styles.notRegisteredContainer}>
                                     <Ionicons name="information-circle-outline" size={20} color={COLORS.textSecondary} style={styles.infoIcon} />
-                                    <Text style={styles.notRegisteredText}>Ce véhicule n'est pas inscrit sur VigiPlaque.</Text>
+                                    <Text style={styles.notRegisteredText}>Ce véhicule n'est pas inscrit sur Plaq'Up.</Text>
                                 </View>
                             )}
                         </View>

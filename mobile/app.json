@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "VigiPlaque",
+    "name": "Plaq'Up",
     "slug": "vigiplaque",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -18,7 +18,7 @@
         "NSCameraUsageDescription": "$(PRODUCT_NAME) needs access to your Camera.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.anonymous.vigiplaque"
+      "bundleIdentifier": "com.anonymous.plaqup"
     },
     "android": {
       "adaptiveIcon": {
@@ -32,7 +32,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.vigiplaque"
+      "package": "com.anonymous.plaqup"
     },
     "web": {
       "favicon": "./assets/favicon.png"

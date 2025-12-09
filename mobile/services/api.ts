@@ -47,6 +47,32 @@ export const api = {
         return response.json();
     },
 
+    async forgotPassword(email: string) {
+        const response = await fetch(`${BASE_URL}/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Request failed');
+        }
+        return response.json();
+    },
+
+    async resetPassword(email: string, code: string, newPassword: string) {
+        const response = await fetch(`${BASE_URL}/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code, newPassword }),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Reset failed');
+        }
+        return response.json();
+    },
+
     async searchUser(plate: string) {
         const response = await fetch(`${BASE_URL}/users/search?plate=${plate}`);
         if (!response.ok) {
@@ -100,6 +126,44 @@ export const api = {
             const error = await response.json();
             throw new Error(error.error || 'Delete failed');
         }
+        return response.json();
+    },
+
+    async blockUser(blockerId: string, blockedId: string) {
+        const response = await fetch(`${BASE_URL}/users/block`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ blockerId, blockedId }),
+        });
+        return response.json();
+    },
+
+    async unblockUser(blockerId: string, blockedId: string) {
+        const response = await fetch(`${BASE_URL}/users/unblock`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ blockerId, blockedId }),
+        });
+        return response.json();
+    },
+
+    async getBlockStatus(userId: string, otherId: string) {
+        const response = await fetch(`${BASE_URL}/users/relationship/${userId}/${otherId}`);
+        if (!response.ok) throw new Error('Failed to fetch block status');
+        return response.json();
+    },
+
+    async getBlockedUsers(userId: string) {
+        const response = await fetch(`${BASE_URL}/users/blocked/${userId}`);
+        if (!response.ok) throw new Error('Failed to fetch blocked users');
+        return response.json();
+    },
+
+    async deleteConversation(userId: string, partnerId: string) {
+        const response = await fetch(`${BASE_URL}/chats/${userId}/${partnerId}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) throw new Error('Failed to delete conversation');
         return response.json();
     },
 

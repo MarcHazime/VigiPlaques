@@ -80,6 +80,7 @@ export default function Profile() {
                             onChangeText={setPlate}
                             autoCapitalize="characters"
                             placeholder="XX-123-XX"
+                            placeholderTextColor={COLORS.textSecondary}
                         />
                     </View>
 
@@ -93,6 +94,7 @@ export default function Profile() {
                             autoCapitalize="none"
                             keyboardType="email-address"
                             placeholder="email@exemple.com"
+                            placeholderTextColor={COLORS.textSecondary}
                         />
                     </View>
 
@@ -105,6 +107,7 @@ export default function Profile() {
                             onChangeText={setPassword}
                             secureTextEntry
                             placeholder="Nouveau mot de passe"
+                            placeholderTextColor={COLORS.textSecondary}
                         />
                     </View>
 

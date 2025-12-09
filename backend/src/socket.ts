@@ -16,8 +16,25 @@ export const setupSocket = (io: Server) => {
         socket.on('send_message', async (data: { senderId: string; receiverId: string; content: string; tempId?: string; imageUrl?: string }) => {
             const { senderId, receiverId, content, tempId, imageUrl } = data;
 
-            // Save to DB
+            // Check for Block
             try {
+                const block = await prisma.block.findFirst({
+                    where: {
+                        OR: [
+                            { blockerId: receiverId, blockedId: senderId }, // Receiver blocked Sender
+                            { blockerId: senderId, blockedId: receiverId }  // Sender blocked Receiver
+                        ]
+                    }
+                });
+
+                if (block) {
+                    console.log(`Message blocked between ${senderId} and ${receiverId}`);
+                    // Optionally emit an error back to sender
+                    socket.emit('message_error', { tempId, error: 'Utilisateur bloqué' });
+                    return;
+                }
+
+                // Save to DB
                 const message = await prisma.message.create({
                     data: {
                         senderId,

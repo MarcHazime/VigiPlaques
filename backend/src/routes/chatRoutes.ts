@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getChatHistory, getUserChats, uploadImage } from '../controllers/chatController';
+import { getChatHistory, getUserChats, uploadImage, deleteConversation } from '../controllers/chatController';
 import multer from 'multer';
 import path from 'path';
 
@@ -19,5 +19,6 @@ const router = Router();
 router.get('/history/:userId1/:userId2', getChatHistory);
 router.get('/list/:userId', getUserChats);
 router.post('/upload', upload.single('image'), uploadImage);
+router.delete('/:userId/:partnerId', deleteConversation);
 
 export default router;

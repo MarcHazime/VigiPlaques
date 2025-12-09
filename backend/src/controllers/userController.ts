@@ -93,12 +93,22 @@ export const deleteUser = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     try {
-        // Delete messages first to maintain referential integrity
+        // Delete messages first
         await prisma.message.deleteMany({
             where: {
                 OR: [
                     { senderId: id },
                     { receiverId: id }
+                ]
+            }
+        });
+
+        // Delete blocks
+        await prisma.block.deleteMany({
+            where: {
+                OR: [
+                    { blockerId: id },
+                    { blockedId: id }
                 ]
             }
         });
@@ -111,5 +121,77 @@ export const deleteUser = async (req: Request, res: Response) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const blockUser = async (req: Request, res: Response) => {
+    const { blockerId, blockedId } = req.body;
+    try {
+        // Check if already blocked to avoid unique constraint error
+        const existing = await prisma.block.findUnique({
+            where: {
+                blockerId_blockedId: { blockerId, blockedId }
+            }
+        });
+
+        if (existing) return res.json({ message: 'User already blocked' });
+
+        await prisma.block.create({
+            data: { blockerId, blockedId }
+        });
+        res.json({ message: 'User blocked' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error blocking user' });
+    }
+};
+
+export const unblockUser = async (req: Request, res: Response) => {
+    const { blockerId, blockedId } = req.body;
+    try {
+        await prisma.block.deleteMany({
+            where: { blockerId, blockedId }
+        });
+        res.json({ message: 'User unblocked' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error unblocking user' });
+    }
+};
+
+export const getBlockedUsers = async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    try {
+        const blocks = await prisma.block.findMany({
+            where: { blockerId: userId },
+            include: { blocked: { select: { id: true, plate: true } } }
+        });
+        res.json(blocks.map(b => b.blocked));
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error fetching blocked users' });
+    }
+};
+// Check relationship status (bidirectional block check)
+export const getBlockStatus = async (req: Request, res: Response) => {
+    const { userId, otherId } = req.params;
+
+    try {
+        const blocks = await prisma.block.findMany({
+            where: {
+                OR: [
+                    { blockerId: userId, blockedId: otherId }, // I blocked them
+                    { blockerId: otherId, blockedId: userId }  // They blocked me
+                ]
+            }
+        });
+
+        const blockedByMe = blocks.some(b => b.blockerId === userId);
+        const blockedByOther = blocks.some(b => b.blockerId === otherId);
+
+        res.json({ blockedByMe, blockedByOther });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error fetching block status' });
     }
 };

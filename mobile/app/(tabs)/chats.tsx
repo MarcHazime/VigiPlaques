@@ -1,4 +1,4 @@
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, SafeAreaView, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, SafeAreaView, RefreshControl, Alert } from 'react-native';
 import { useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import { useRouter } from 'expo-router';
@@ -56,6 +56,27 @@ export default function Chats() {
                     <TouchableOpacity
                         style={styles.item}
                         onPress={() => router.push(`/chat/${item.id}`)}
+                        onLongPress={() => {
+                            Alert.alert(
+                                "Supprimer la conversation",
+                                `Voulez-vous supprimer les messages avec ${item.plate} ?`,
+                                [
+                                    { text: "Annuler", style: "cancel" },
+                                    {
+                                        text: "Supprimer",
+                                        style: "destructive",
+                                        onPress: async () => {
+                                            try {
+                                                await api.deleteConversation(user?.id!, item.id);
+                                                loadChats();
+                                            } catch (error) {
+                                                console.error(error);
+                                            }
+                                        }
+                                    }
+                                ]
+                            );
+                        }}
                     >
                         <View style={styles.avatar}>
                             <Text style={styles.avatarText}>{item.plate.substring(0, 2)}</Text>
