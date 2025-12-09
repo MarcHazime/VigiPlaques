@@ -1,7 +1,7 @@
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, SafeAreaView, RefreshControl, Alert } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/auth';
@@ -12,11 +12,13 @@ export default function Chats() {
     const [refreshing, setRefreshing] = useState(false);
     const router = useRouter();
 
-    useEffect(() => {
-        if (user) {
-            loadChats();
-        }
-    }, [user]);
+    useFocusEffect(
+        useCallback(() => {
+            if (user) {
+                loadChats();
+            }
+        }, [user])
+    );
 
     const loadChats = async () => {
         if (!user) return;
