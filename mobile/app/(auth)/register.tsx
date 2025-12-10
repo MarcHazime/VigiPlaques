@@ -18,8 +18,19 @@ export default function Register() {
     const handleRegister = async () => {
         try {
             setError('');
+            if (!email) {
+                setError('Email requis pour la vérification');
+                return;
+            }
             const response = await api.register(plate, password, email);
-            signIn({ id: response.userId, plate: plate, email: email });
+            if (response.requiresVerification) {
+                router.push({
+                    pathname: '/(auth)/verify-email',
+                    params: { userId: response.userId, email: response.email }
+                });
+            } else {
+                signIn({ id: response.userId, plate: plate, email: email });
+            }
         } catch (err: any) {
             setError(err.message);
         }
@@ -65,7 +76,7 @@ export default function Register() {
                             <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
-                                placeholder="Email (Optionnel)"
+                                placeholder="Email (Requis)"
                                 placeholderTextColor={COLORS.textSecondary}
                                 value={email}
                                 onChangeText={setEmail}

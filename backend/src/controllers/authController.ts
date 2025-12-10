@@ -17,33 +17,99 @@ export const register = async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères' });
     }
 
+    if (!email) {
+        return res.status(400).json({ error: 'Email requis pour la vérification' });
+    }
+
     try {
         const existingUser = await prisma.user.findUnique({ where: { plate } });
         if (existingUser) {
             return res.status(400).json({ error: 'Plaque déjà enregistrée' });
         }
 
-        if (email) {
-            const existingEmail = await prisma.user.findUnique({ where: { email } });
-            if (existingEmail) {
-                return res.status(400).json({ error: 'Email déjà enregistré' });
-            }
+        const existingEmail = await prisma.user.findUnique({ where: { email } });
+        if (existingEmail) {
+            return res.status(400).json({ error: 'Email déjà enregistré' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Generate Verification OTP
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const verificationExpires = new Date(Date.now() + 24 * 3600 * 1000); // 24 hours
 
         const user = await prisma.user.create({
             data: {
                 plate,
                 password: hashedPassword,
-                email: email || null
+                email,
+                isVerified: false,
+                verificationToken: verificationCode,
+                verificationExpires
             },
         });
 
-        res.status(201).json({ message: 'Inscription réussie', userId: user.id, plate: user.plate, email: user.email });
+        // Send Verification Email
+        await sendEmail(
+            email,
+            "Bienvenue sur Plaq'Up - Vérifiez votre compte",
+            `Bonjour,\n\nBienvenue sur Plaq'Up !\n\nPour activer votre compte et commencer à utiliser l'application, veuillez saisir le code de vérification suivant :\n\n${verificationCode}\n\nCe code est valable 24 heures.\n\nÀ bientôt,\nL'équipe Plaq'Up`
+        );
+
+        res.status(201).json({
+            message: 'Inscription réussie. Veuillez vérifier votre email.',
+            userId: user.id,
+            email: user.email,
+            requiresVerification: true
+        });
     } catch (error: any) {
         console.error('Registration Error:', error);
         res.status(500).json({ error: error.message || 'Erreur interne du serveur' });
+    }
+};
+
+export const verifyEmail = async (req: Request, res: Response) => {
+    const { userId, code } = req.body;
+
+    if (!userId || !code) {
+        return res.status(400).json({ error: 'ID utilisateur et code requis' });
+    }
+
+    try {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+
+        if (!user) {
+            return res.status(404).json({ error: 'Utilisateur introuvable' });
+        }
+
+        if (user.isVerified) {
+            return res.status(400).json({ error: 'Compte déjà vérifié' });
+        }
+
+        if (user.verificationToken !== code || !user.verificationExpires || user.verificationExpires < new Date()) {
+            return res.status(400).json({ error: 'Code invalide ou expiré' });
+        }
+
+        // Verify user
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: {
+                isVerified: true,
+                verificationToken: null,
+                verificationExpires: null
+            }
+        });
+
+        res.json({
+            message: 'Compte vérifié avec succès',
+            userId: updatedUser.id,
+            plate: updatedUser.plate,
+            email: updatedUser.email
+        });
+
+    } catch (error) {
+        console.error('Email Verification Error:', error);
+        res.status(500).json({ error: 'Erreur interne du serveur' });
     }
 };
 
@@ -54,6 +120,10 @@ export const login = async (req: Request, res: Response) => {
         const user = await prisma.user.findUnique({ where: { plate } });
         if (!user) {
             return res.status(401).json({ error: 'Identifiants invalides' });
+        }
+
+        if (!user.isVerified) {
+            return res.status(401).json({ error: 'Email non vérifié. Veuillez vérifier votre email.' });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -98,8 +168,8 @@ export const forgotPassword = async (req: Request, res: Response) => {
         // Send Email (Real or Dev Mode handled by service)
         await sendEmail(
             email,
-            "Réinitialisation mot de passe - VigiPlaque",
-            `Bonjour,\n\nVoici votre code de réinitialisation : ${code}\n\nCe code est valable 1 heure.\n\nCordialement,\nL'équipe VigiPlaque`
+            "Réinitialisation mot de passe - Plaq'Up",
+            `Bonjour,\n\nVoici votre code de réinitialisation : ${code}\n\nCe code est valable 1 heure.\n\nCordialement,\nL'équipe Plaq'Up`
         );
 
         res.json({ message: 'Si cet email existe, un code a été envoyé.' });

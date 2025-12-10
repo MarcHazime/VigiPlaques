@@ -34,6 +34,19 @@ export const api = {
         return response.json();
     },
 
+    async verifyEmail(userId: string, code: string) {
+        const response = await fetch(`${BASE_URL}/auth/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, code }),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Verification failed');
+        }
+        return response.json();
+    },
+
     async login(plate: string, password: string) {
         const response = await fetch(`${BASE_URL}/auth/login`, {
             method: 'POST',

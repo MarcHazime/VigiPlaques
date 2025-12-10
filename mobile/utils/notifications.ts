@@ -69,8 +69,8 @@ export async function registerForPushNotificationsAsync() {
                 projectId,
             })).data;
         } catch (e) {
-            token = `${e}`;
-            console.error('Error getting push token:', e);
+            console.log('Push Token Error (Expected if no Firebase Config):', e);
+            return null;
         }
     } else {
         alert('Must use physical device for Push Notifications');
