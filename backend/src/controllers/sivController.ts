@@ -27,10 +27,15 @@ export const scanPlate = async (req: Request, res: Response): Promise<void> => {
         // Reuse the logic to fetch info and check user
         const sivData = await getVehicleDetails(plate);
 
-        const registeredUser = await prisma.user.findUnique({
+        const vehicle = await prisma.vehicle.findUnique({
             where: { plate },
-            select: { id: true, plate: true }
+            include: { user: { select: { id: true } } }
         });
+
+        const registeredUser = vehicle && vehicle.user ? {
+            id: vehicle.user.id,
+            plate: vehicle.plate
+        } : null;
 
         res.json({
             ...(sivData as object),
@@ -56,11 +61,16 @@ export const getVehicleInfo = async (req: Request, res: Response): Promise<void>
         // Fetch SIV data
         const sivData = await getVehicleDetails(plate);
 
-        // Check if user exists in our DB
-        const registeredUser = await prisma.user.findUnique({
+        // Check if vehicle exists in our DB
+        const vehicle = await prisma.vehicle.findUnique({
             where: { plate },
-            select: { id: true, plate: true }
+            include: { user: { select: { id: true } } }
         });
+
+        const registeredUser = vehicle && vehicle.user ? {
+            id: vehicle.user.id,
+            plate: vehicle.plate
+        } : null;
 
         res.json({
             ...(sivData as object),

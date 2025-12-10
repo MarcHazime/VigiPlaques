@@ -96,8 +96,12 @@ export const api = {
         return response.json();
     },
 
-    async getChatHistory(userId1: string, userId2: string) {
-        const response = await fetch(`${BASE_URL}/chats/history/${userId1}/${userId2}`);
+    async getChatHistory(userId1: string, userId2: string, relatedPlate?: string) {
+        let url = `${BASE_URL}/chats/history/${userId1}/${userId2}`;
+        if (relatedPlate) {
+            url += `?relatedPlate=${relatedPlate}`;
+        }
+        const response = await fetch(url);
         if (!response.ok) throw new Error('Failed to fetch history');
         return response.json();
     },
@@ -233,5 +237,35 @@ export const api = {
         // BASE_URL is http://host:3000/api, we need http://host:3000
         const rootUrl = BASE_URL.replace('/api', '');
         return `${rootUrl}${path}`;
+    },
+
+    async getVehicles(userId: string) {
+        const response = await fetch(`${BASE_URL}/users/${userId}/vehicles`);
+        if (!response.ok) throw new Error('Failed to fetch vehicles');
+        return response.json();
+    },
+
+    async addVehicle(userId: string, plate: string) {
+        const response = await fetch(`${BASE_URL}/users/${userId}/vehicles`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plate }),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to add vehicle');
+        }
+        return response.json();
+    },
+
+    async deleteVehicle(userId: string, vehicleId: string) {
+        const response = await fetch(`${BASE_URL}/users/${userId}/vehicles/${vehicleId}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete vehicle');
+        }
+        return response.json();
     }
 };

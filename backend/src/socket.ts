@@ -13,8 +13,8 @@ export const setupSocket = (io: Server) => {
             console.log(`User ${socket.id} joined room ${room}`);
         });
 
-        socket.on('send_message', async (data: { senderId: string; receiverId: string; content: string; tempId?: string; imageUrl?: string }) => {
-            const { senderId, receiverId, content, tempId, imageUrl } = data;
+        socket.on('send_message', async (data: { senderId: string; receiverId: string; content: string; tempId?: string; imageUrl?: string; relatedPlate?: string }) => {
+            const { senderId, receiverId, content, tempId, imageUrl, relatedPlate } = data;
 
             // Check for Block
             try {
@@ -41,6 +41,7 @@ export const setupSocket = (io: Server) => {
                         receiverId,
                         content,
                         imageUrl,
+                        relatedPlate
                     },
                 });
 

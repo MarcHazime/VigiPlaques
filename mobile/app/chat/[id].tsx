@@ -8,9 +8,13 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/auth';
 import * as ImagePicker from 'expo-image-picker';
+import ImageViewing from 'react-native-image-viewing';
 
 export default function Chat() {
-    const { id } = useLocalSearchParams<{ id: string }>();
+    const params = useLocalSearchParams<{ id: string; relatedPlate?: string }>();
+    const id = params.id;
+    const relatedPlate = params.relatedPlate;
+
     const { user } = useAuth();
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
@@ -21,21 +25,30 @@ export default function Chat() {
     const flatListRef = useRef<FlatList>(null);
     const router = useRouter();
 
+    // Image Zoom State
+    const [isImageViewVisible, setIsImageViewVisible] = useState(false);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [imageUrls, setImageUrls] = useState<{ uri: string }[]>([]);
+
     useEffect(() => {
         if (!id || !user) return;
 
-        // Fetch partner details
+        // Fetch partner details (just for display name?)
+        // Actually, if we are discussing relatedPlate, maybe we show relatedPlate as title?
+        // Or "Discussion avec [User] à propos de [Plate]".
+
         const fetchPartner = async () => {
             try {
                 const partner = await api.getUserById(id);
-                setPartnerPlate(partner.plate);
+                // If relatedPlate is set, we might prioritize that in title
+                setPartnerPlate(partner.plate || 'Utilisateur');
             } catch (error) {
                 console.error('Error fetching partner:', error);
-                setPartnerPlate('Unknown User');
+                setPartnerPlate('Utilisateur');
             }
         };
 
-        // Check block status
+        // ... (Block check same)
         const checkBlock = async () => {
             try {
                 const status = await api.getBlockStatus(user.id, id);
@@ -59,6 +72,11 @@ export default function Chat() {
 
         // Listen for messages
         socket.on('receive_message', (message) => {
+            // Filter: Only show if it matches relatedPlate or if general
+            if (relatedPlate && message.relatedPlate && message.relatedPlate !== relatedPlate) {
+                return;
+            }
+
             setMessages((prev) => {
                 const exists = prev.some(m => m.id === message.id || (m.tempId && m.tempId === message.tempId));
                 if (exists) return prev;
@@ -68,7 +86,6 @@ export default function Chat() {
         });
 
         socket.on('message_error', (data) => {
-            // alert(data.error); // Removed alert as requested
             console.log("Message error: ", data.error);
         });
 
@@ -77,18 +94,19 @@ export default function Chat() {
             socket.off('message_error');
             socket.disconnect();
         };
-    }, [id, user]);
+    }, [id, user, relatedPlate]);
 
     const loadHistory = async () => {
         if (!user || !id) return;
         try {
-            const history = await api.getChatHistory(user.id, id);
+            const history = await api.getChatHistory(user.id, id, relatedPlate);
             setMessages(history);
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
         } catch (error) {
             console.error(error);
         }
     };
+
 
     const handleOptions = () => {
         Alert.alert(
@@ -115,7 +133,7 @@ export default function Chat() {
         try {
             await api.blockUser(user.id, id);
             setIsBlockedByMe(true);
-            Alert.alert("Succès", `${partnerPlate} a été bloqué.`);
+            Alert.alert("Succès", `L'utilisateur a été bloqué.`);
         } catch (error) {
             Alert.alert("Erreur", "Impossible de bloquer l'utilisateur.");
         }
@@ -126,7 +144,7 @@ export default function Chat() {
         try {
             await api.unblockUser(user.id, id);
             setIsBlockedByMe(false);
-            Alert.alert("Succès", `${partnerPlate} a été débloqué.`);
+            Alert.alert("Succès", `L'utilisateur a été débloqué.`);
         } catch (error) {
             Alert.alert("Erreur", "Impossible de débloquer l'utilisateur.");
         }
@@ -136,7 +154,7 @@ export default function Chat() {
         if (!user || !id) return;
         Alert.alert(
             "Confirmation",
-            "Voulez-vous vraiment supprimer cette conversation pour vous ? L'autre utilisateur conservera son historique.",
+            "Voulez-vous vraiment supprimer cette conversation pour vous ?",
             [
                 { text: "Annuler", style: "cancel" },
                 {
@@ -169,6 +187,7 @@ export default function Chat() {
             content: content,
             imageUrl: imageUrl,
             tempId,
+            relatedPlate, // Add context
             createdAt: new Date().toISOString()
         };
 
@@ -215,6 +234,11 @@ export default function Chat() {
 
     const isBlocked = isBlockedByMe || isBlockedByPartner;
 
+    const openImage = (imageUrl: string) => {
+        setImageUrls([{ uri: imageUrl }]);
+        setIsImageViewVisible(true);
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <View style={styles.header}>
@@ -222,8 +246,12 @@ export default function Chat() {
                     <Ionicons name="arrow-back" size={24} color={COLORS.text} />
                 </TouchableOpacity>
                 <View style={{ flex: 1 }}>
-                    <Text style={styles.headerTitle}>Discussion avec</Text>
-                    <Text style={styles.headerSubtitle}>{partnerPlate || 'Chargement...'}</Text>
+                    <Text style={styles.headerTitle}>
+                        {relatedPlate ? `Concernant ${relatedPlate}` : 'Discussion'}
+                    </Text>
+                    <Text style={styles.headerSubtitle}>
+                        {partnerPlate ? `avec ${partnerPlate}` : 'En ligne'}
+                    </Text>
                 </View>
                 <TouchableOpacity onPress={handleOptions} style={{ padding: 8 }}>
                     <Ionicons name="ellipsis-vertical" size={24} color={COLORS.text} />
@@ -261,11 +289,13 @@ export default function Chat() {
                                 isMe ? styles.sent : styles.received
                             ]}>
                                 {imageUrl && (
-                                    <Image
-                                        source={{ uri: imageUrl }}
-                                        style={styles.messageImage}
-                                        resizeMode="cover"
-                                    />
+                                    <TouchableOpacity onPress={() => openImage(imageUrl)}>
+                                        <Image
+                                            source={{ uri: imageUrl }}
+                                            style={styles.messageImage}
+                                            resizeMode="cover"
+                                        />
+                                    </TouchableOpacity>
                                 )}
                                 {item.content ? (
                                     <Text style={[
@@ -314,6 +344,13 @@ export default function Chat() {
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
+
+            <ImageViewing
+                images={imageUrls}
+                imageIndex={0}
+                visible={isImageViewVisible}
+                onRequestClose={() => setIsImageViewVisible(false)}
+            />
         </SafeAreaView>
     );
 }

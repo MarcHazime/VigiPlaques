@@ -5,39 +5,22 @@ const prisma = new PrismaClient();
 
 export const getChatHistory = async (req: Request, res: Response) => {
     const { userId1, userId2 } = req.params;
+    const { relatedPlate } = req.query;
 
     try {
-        const messages = await prisma.message.findMany({
-            where: {
-                OR: [
-                    {
-                        senderId: userId1,
-                        receiverId: userId2,
-                        deletedBySender: false // User1 is sender, shouldn't see if deleted
-                    },
-                    {
-                        senderId: userId2,
-                        receiverId: userId1,
-                        deletedByReceiver: false // User1 is receiver, shouldn't see if deleted
-                    },
-                ],
-            },
-            orderBy: { createdAt: 'asc' },
-        });
+        const whereClause: any = {
+            OR: [
+                { senderId: userId1, receiverId: userId2, deletedBySender: false },
+                { senderId: userId2, receiverId: userId1, deletedByReceiver: false }
+            ]
+        };
 
-        // The query above is slightly wrong because "deletedBySender" refers to the *sender* of the message.
-        // If I am userId1 calling this, I want to see messages:
-        // 1. Sent by userId1 TO userId2 AND NOT deletedBySender
-        // 2. Sent by userId2 TO userId1 AND NOT deletedByReceiver
+        if (relatedPlate) {
+            whereClause.relatedPlate = relatedPlate;
+        }
 
-        // Wait, the AND logic in OR block is tricky. Let's precise it:
         const finalMessages = await prisma.message.findMany({
-            where: {
-                OR: [
-                    { senderId: userId1, receiverId: userId2, deletedBySender: false },
-                    { senderId: userId2, receiverId: userId1, deletedByReceiver: false }
-                ]
-            },
+            where: whereClause,
             orderBy: { createdAt: 'asc' }
         });
 
@@ -73,34 +56,84 @@ export const deleteConversation = async (req: Request, res: Response) => {
 
 export const getUserChats = async (req: Request, res: Response) => {
     const { userId } = req.params;
-    // This is a bit complex with Prisma to get "latest message per conversation".
-    // For simplicity, we might just fetch all messages involving user and group them in JS, 
-    // or just return a list of users they have talked to.
 
-    // Simplified: Find all unique users this user has exchanged messages with.
     try {
-        const sent = await prisma.message.findMany({
-            where: {
-                senderId: userId,
-                deletedBySender: false
-            },
-            select: { receiver: true },
-            distinct: ['receiverId']
+        // Fetch current user's vehicles to determine "My Scope"
+        const myVehicles = await prisma.vehicle.findMany({
+            where: { userId },
+            select: { plate: true, isPrimary: true }
         });
-        const received = await prisma.message.findMany({
+        const myVehiclePlates = new Set(myVehicles.map(v => v.plate));
+        const myPrimary = myVehicles.find(v => v.isPrimary)?.plate || myVehicles[0]?.plate || 'Unknown';
+
+        // Fetch all messages involving the user
+        const messages = await prisma.message.findMany({
             where: {
-                receiverId: userId,
-                deletedByReceiver: false
+                OR: [
+                    { senderId: userId, deletedBySender: false },
+                    { receiverId: userId, deletedByReceiver: false }
+                ]
             },
-            select: { sender: true },
-            distinct: ['senderId']
+            orderBy: { createdAt: 'desc' },
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        email: true,
+                        vehicles: { where: { isPrimary: true }, select: { plate: true } }
+                    }
+                },
+                receiver: {
+                    select: {
+                        id: true,
+                        email: true,
+                        vehicles: { where: { isPrimary: true }, select: { plate: true } }
+                    }
+                },
+            }
         });
 
-        // Combine and deduplicate
-        const users = [...sent.map(m => m.receiver), ...received.map(m => m.sender)];
-        const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
+        // Group by conversation
+        const conversations = new Map();
 
-        res.json(uniqueUsers);
+        for (const msg of messages) {
+            const isSender = msg.senderId === userId;
+            const partner = isSender ? msg.receiver : msg.sender;
+            const plate = msg.relatedPlate || 'Unknown';
+            const key = `${partner.id}_${plate}`;
+
+            if (!conversations.has(key)) {
+                // Determine My Scope (Which of my plates is this about?)
+                // If the subject is one of my plates -> That's the scope.
+                // If the subject is THEIR plate -> I am using my Primary.
+                const myScope = myVehiclePlates.has(plate) ? plate : myPrimary;
+
+                // Determine Other Display (What plate title to show for them?)
+                // If the subject is THEIR plate -> Show that.
+                // If the subject is MY plate -> Show their Primary.
+
+                // Check if plate belongs to me
+                const isMyPlate = myVehiclePlates.has(plate);
+                const partnerPrimary = partner.vehicles[0]?.plate || 'Inconnu';
+
+                // If subject is my plate -> Show partner's primary
+                // If subject is NOT my plate (so it's theirs) -> Show subject
+                const otherDisplay = isMyPlate ? partnerPrimary : plate;
+
+                conversations.set(key, {
+                    id: partner.id,
+                    partnerId: partner.id,
+                    email: partner.email,
+                    relatedPlate: plate, // Keep atomic context
+                    lastMessage: msg.content,
+                    timestamp: msg.createdAt,
+                    myScope, // Frontend will use this to group in tabs
+                    otherDisplay // Frontend will use this as Title
+                });
+            }
+        }
+
+        res.json(Array.from(conversations.values()));
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });

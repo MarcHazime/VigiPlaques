@@ -12,16 +12,21 @@ export const searchUser = async (req: Request, res: Response) => {
     }
 
     try {
-        const user = await prisma.user.findUnique({
+        const vehicle = await prisma.vehicle.findUnique({
             where: { plate },
-            select: { id: true, plate: true, createdAt: true } // Don't return everything if sensitive
+            include: { user: { select: { id: true, createdAt: true } } }
         });
 
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+        if (!vehicle) {
+            return res.status(404).json({ error: 'Plaque introuvable' });
         }
 
-        res.json(user);
+        // Return user info attached to the plate
+        res.json({
+            id: vehicle.userId,
+            plate: vehicle.plate,
+            createdAt: vehicle.user.createdAt
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
@@ -34,14 +39,19 @@ export const getUserById = async (req: Request, res: Response) => {
     try {
         const user = await prisma.user.findUnique({
             where: { id },
-            select: { id: true, plate: true, createdAt: true }
+            select: { id: true, createdAt: true, vehicles: { select: { plate: true, isPrimary: true } } }
         });
 
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json(user);
+        const userWithPlate = {
+            ...user,
+            plate: user.vehicles.find(v => v.isPrimary)?.plate || user.vehicles[0]?.plate || 'Inconnu'
+        };
+
+        res.json(userWithPlate);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
@@ -50,11 +60,10 @@ export const getUserById = async (req: Request, res: Response) => {
 
 export const updateUser = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { plate, email, password } = req.body;
+    const { email, password } = req.body;
 
     try {
         const data: any = {};
-        if (plate) data.plate = plate;
         if (email) data.email = email;
         if (password) {
             data.password = await bcrypt.hash(password, 10);
@@ -65,10 +74,72 @@ export const updateUser = async (req: Request, res: Response) => {
             data,
         });
 
-        res.json({ message: 'User updated successfully', user: { id: user.id, plate: user.plate, email: user.email } });
+        res.json({ message: 'User updated successfully', user: { id: user.id, email: user.email } });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const getVehicles = async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    try {
+        const vehicles = await prisma.vehicle.findMany({
+            where: { userId }
+        });
+        res.json(vehicles);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error fetching vehicles' });
+    }
+};
+
+export const addVehicle = async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const { plate } = req.body;
+    const PLATE_REGEX = /^[A-Z]{2}-\d{3}-[A-Z]{2}$/;
+
+    if (!plate || !PLATE_REGEX.test(plate)) {
+        return res.status(400).json({ error: 'Format de plaque invalide' });
+    }
+
+    try {
+        const existing = await prisma.vehicle.findUnique({ where: { plate } });
+        if (existing) {
+            return res.status(400).json({ error: 'Plaque déjà enregistrée' });
+        }
+
+        const vehicle = await prisma.vehicle.create({
+            data: {
+                plate,
+                userId
+            }
+        });
+        res.json(vehicle);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error adding vehicle' });
+    }
+};
+
+export const deleteVehicle = async (req: Request, res: Response) => {
+    const { userId, id } = req.params; // id is vehicleId
+
+    try {
+        const vehicle = await prisma.vehicle.findUnique({ where: { id } });
+        if (!vehicle || vehicle.userId !== userId) {
+            return res.status(404).json({ error: 'Véhicule introuvable' });
+        }
+
+        if (vehicle.isPrimary) {
+            return res.status(400).json({ error: 'Impossible de supprimer le véhicule principal' });
+        }
+
+        await prisma.vehicle.delete({ where: { id } });
+        res.json({ message: 'Véhicule supprimé' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error deleting vehicle' });
     }
 };
 
@@ -164,9 +235,22 @@ export const getBlockedUsers = async (req: Request, res: Response) => {
     try {
         const blocks = await prisma.block.findMany({
             where: { blockerId: userId },
-            include: { blocked: { select: { id: true, plate: true } } }
+            include: {
+                blocked: {
+                    select: {
+                        id: true,
+                        vehicles: {
+                            where: { isPrimary: true },
+                            select: { plate: true }
+                        }
+                    }
+                }
+            }
         });
-        res.json(blocks.map(b => b.blocked));
+        res.json(blocks.map(b => ({
+            id: b.blocked.id,
+            plate: b.blocked.vehicles[0]?.plate || 'Inconnu'
+        })));
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error fetching blocked users' });

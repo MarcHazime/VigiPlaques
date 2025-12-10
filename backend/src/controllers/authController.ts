@@ -22,8 +22,9 @@ export const register = async (req: Request, res: Response) => {
     }
 
     try {
-        const existingUser = await prisma.user.findUnique({ where: { plate } });
-        if (existingUser) {
+        // Check if plate exists in Vehicle table
+        const existingVehicle = await prisma.vehicle.findUnique({ where: { plate } });
+        if (existingVehicle) {
             return res.status(400).json({ error: 'Plaque déjà enregistrée' });
         }
 
@@ -38,15 +39,27 @@ export const register = async (req: Request, res: Response) => {
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
         const verificationExpires = new Date(Date.now() + 24 * 3600 * 1000); // 24 hours
 
-        const user = await prisma.user.create({
-            data: {
-                plate,
-                password: hashedPassword,
-                email,
-                isVerified: false,
-                verificationToken: verificationCode,
-                verificationExpires
-            },
+        // Transaction to create User and Primary Vehicle
+        const user = await prisma.$transaction(async (prisma) => {
+            const newUser = await prisma.user.create({
+                data: {
+                    password: hashedPassword,
+                    email,
+                    isVerified: false,
+                    verificationToken: verificationCode,
+                    verificationExpires
+                },
+            });
+
+            await prisma.vehicle.create({
+                data: {
+                    plate,
+                    userId: newUser.id,
+                    isPrimary: true
+                }
+            });
+
+            return newUser;
         });
 
         // Send Verification Email
@@ -60,7 +73,8 @@ export const register = async (req: Request, res: Response) => {
             message: 'Inscription réussie. Veuillez vérifier votre email.',
             userId: user.id,
             email: user.email,
-            requiresVerification: true
+            requiresVerification: true,
+            primaryPlate: plate
         });
     } catch (error: any) {
         console.error('Registration Error:', error);
@@ -103,7 +117,6 @@ export const verifyEmail = async (req: Request, res: Response) => {
         res.json({
             message: 'Compte vérifié avec succès',
             userId: updatedUser.id,
-            plate: updatedUser.plate,
             email: updatedUser.email
         });
 
@@ -117,10 +130,17 @@ export const login = async (req: Request, res: Response) => {
     const { plate, password } = req.body;
 
     try {
-        const user = await prisma.user.findUnique({ where: { plate } });
-        if (!user) {
+        // Find vehicle first to get user
+        const vehicle = await prisma.vehicle.findUnique({
+            where: { plate },
+            include: { user: true }
+        });
+
+        if (!vehicle) {
             return res.status(401).json({ error: 'Identifiants invalides' });
         }
+
+        const user = vehicle.user;
 
         if (!user.isVerified) {
             return res.status(401).json({ error: 'Email non vérifié. Veuillez vérifier votre email.' });
@@ -131,7 +151,12 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ error: 'Identifiants invalides' });
         }
 
-        res.json({ message: 'Connexion réussie', userId: user.id, plate: user.plate, email: user.email });
+        res.json({
+            message: 'Connexion réussie',
+            userId: user.id,
+            email: user.email,
+            primaryPlate: vehicle.plate // The plate they logged in with implies context
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Erreur interne du serveur' });

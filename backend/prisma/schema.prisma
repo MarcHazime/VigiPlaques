@@ -9,7 +9,7 @@ datasource db {
 
 model User {
   id        String   @id @default(uuid())
-  plate     String   @unique
+  // plate removed, moved to Vehicle
   email     String?  @unique
   password  String
   pushToken String?
@@ -24,11 +24,24 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  vehicles         Vehicle[]
+
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
   
   blocksInitiated Block[] @relation("BlocksInitiated")
   blocksReceived  Block[] @relation("BlocksReceived")
+}
+
+model Vehicle {
+  id        String   @id @default(uuid())
+  plate     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isPrimary Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Message {
@@ -42,6 +55,8 @@ model Message {
   
   receiverId String
   receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  relatedPlate String? // To track which vehicle the conversation is about
 
   deletedBySender   Boolean @default(false)
   deletedByReceiver Boolean @default(false)

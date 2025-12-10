@@ -161,7 +161,7 @@ export default function Search() {
                             </View>
 
                             {vehicle.registeredUser ? (
-                                <TouchableOpacity onPress={() => router.push(`/chat/${vehicle.registeredUser.id}`)}>
+                                <TouchableOpacity onPress={() => router.push(`/chat/${vehicle.registeredUser.id}?relatedPlate=${vehicle.data?.immatriculation || resultPlate}`)}>
                                     <LinearGradient
                                         colors={COLORS.primaryGradient as any}
                                         style={styles.messageButton}

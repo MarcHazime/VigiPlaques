@@ -7,9 +7,10 @@ import { api } from '../services/api';
 
 type User = {
     id: string;
-    plate: string;
+    plate?: string; // Kept for backward compat (maps to primaryPlate)
     email?: string;
     pushToken?: string;
+    primaryPlate?: string;
 };
 
 type AuthContextType = {
@@ -56,6 +57,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const signIn = async (userData: User) => {
+        // Compatibility: Ensure 'plate' is set from 'primaryPlate' if needed
+        if (!userData.plate && userData.primaryPlate) {
+            userData.plate = userData.primaryPlate;
+        }
         setUser(userData);
         if (Platform.OS !== 'web') {
             SecureStore.setItemAsync('user', JSON.stringify(userData)).catch(console.error);
