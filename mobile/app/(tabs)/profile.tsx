@@ -5,6 +5,8 @@ import { api } from '../../services/api';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
+import { formatPlate } from '../../utils/formatting';
+
 export default function Profile() {
     const { user, signIn, signOut } = useAuth();
     const [email, setEmail] = useState(user?.email || '');
@@ -159,7 +161,7 @@ export default function Profile() {
                         <TextInput
                             style={styles.addInput}
                             value={newPlate}
-                            onChangeText={setNewPlate}
+                            onChangeText={(text) => setNewPlate(formatPlate(text))}
                             placeholder="AA-123-BB"
                             placeholderTextColor={COLORS.textSecondary}
                             autoCapitalize="characters"

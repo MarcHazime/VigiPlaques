@@ -9,6 +9,8 @@ import { api } from '../../services/api';
 import Scanner from '../../components/Scanner';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { formatPlate } from '../../utils/formatting';
+
 export default function Search() {
     // Search screen component
     const [plate, setPlate] = useState('');
@@ -67,7 +69,7 @@ export default function Search() {
 
     const handleScan = (scannedPlate: string) => {
         setShowScanner(false);
-        setPlate(scannedPlate);
+        setPlate(formatPlate(scannedPlate));
         // Optional: auto-trigger search
         // handleSearch(); 
     };
@@ -97,7 +99,7 @@ export default function Search() {
                                 placeholder="Plaque (ex: AA-123-BB)"
                                 placeholderTextColor={COLORS.textSecondary}
                                 value={plate}
-                                onChangeText={setPlate}
+                                onChangeText={(text) => setPlate(formatPlate(text))}
                                 autoCapitalize="characters"
                                 onSubmitEditing={handleSearch}
                             />
