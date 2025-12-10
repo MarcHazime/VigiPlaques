@@ -1,20 +1,11 @@
-const SIV_API_URL = 'https://api.apiplaqueimmatriculation.com/plaque';
-const SIV_TOKEN = 'TokenDemo2025A'; // In production, use env var
-
+// SIV External API is disabled. Returning local placeholder.
 export const getVehicleDetails = async (plate: string) => {
-    try {
-        const response = await fetch(`${SIV_API_URL}?immatriculation=${plate}&token=${SIV_TOKEN}&pays=FR`, {
-            method: 'POST',
-        });
-
-        if (!response.ok) {
-            throw new Error(`SIV API Error: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error('SIV Service Error:', error);
-        throw error;
-    }
+    // Return placeholder data so the frontend doesn't break
+    // and the controller can proceed to check the local database.
+    return {
+        immatriculation: plate,
+        marque: "Non disponible",
+        modele: "Recherche interne",
+        version: "Base de données locale"
+    };
 };

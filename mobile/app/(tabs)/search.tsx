@@ -129,38 +129,38 @@ export default function Search() {
                         </View>
                     ) : null}
 
-                    {vehicle && (
-                        <View style={styles.resultCard}>
-                            <View style={styles.plateContainer}>
-                                <View style={styles.plateIcon}>
-                                    <Ionicons name="car-sport" size={24} color={COLORS.primary} />
+                    {vehicle ? (
+                        vehicle.registeredUser ? (
+                            <View style={styles.resultCard}>
+                                <View style={styles.plateContainer}>
+                                    <View style={styles.plateIcon}>
+                                        <Ionicons name="car-sport" size={24} color={COLORS.primary} />
+                                    </View>
+                                    <View>
+                                        <Text style={styles.plateLabel}>Immatriculation</Text>
+                                        <Text style={styles.plateText}>{vehicle.data?.immatriculation || resultPlate}</Text>
+                                    </View>
                                 </View>
-                                <View>
-                                    <Text style={styles.plateLabel}>Immatriculation</Text>
-                                    <Text style={styles.plateText}>{vehicle.data?.immatriculation || resultPlate}</Text>
-                                </View>
-                            </View>
 
-                            <View style={styles.detailsContainer}>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Marque</Text>
-                                    <Text style={styles.detailText}>{vehicle.data?.marque || 'N/A'}</Text>
+                                <View style={styles.detailsContainer}>
+                                    <View style={styles.detailRow}>
+                                        <Text style={styles.detailLabel}>Marque</Text>
+                                        <Text style={styles.detailText}>{vehicle.data?.marque || 'N/A'}</Text>
+                                    </View>
+                                    <View style={styles.detailRow}>
+                                        <Text style={styles.detailLabel}>Modèle</Text>
+                                        <Text style={styles.detailText}>{vehicle.data?.modele || 'N/A'}</Text>
+                                    </View>
+                                    <View style={styles.detailRow}>
+                                        <Text style={styles.detailLabel}>Carburant</Text>
+                                        <Text style={styles.detailText}>{vehicle.data?.energie || 'N/A'}</Text>
+                                    </View>
+                                    <View style={styles.detailRow}>
+                                        <Text style={styles.detailLabel}>Année</Text>
+                                        <Text style={styles.detailText}>{vehicle.data?.date_1er_cir ? vehicle.data.date_1er_cir.split('-')[0] : 'N/A'}</Text>
+                                    </View>
                                 </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Modèle</Text>
-                                    <Text style={styles.detailText}>{vehicle.data?.modele || 'N/A'}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Carburant</Text>
-                                    <Text style={styles.detailText}>{vehicle.data?.energie || 'N/A'}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Année</Text>
-                                    <Text style={styles.detailText}>{vehicle.data?.date_1er_cir ? vehicle.data.date_1er_cir.split('-')[0] : 'N/A'}</Text>
-                                </View>
-                            </View>
 
-                            {vehicle.registeredUser ? (
                                 <TouchableOpacity onPress={() => router.push(`/chat/${vehicle.registeredUser.id}?relatedPlate=${vehicle.data?.immatriculation || resultPlate}`)}>
                                     <LinearGradient
                                         colors={COLORS.primaryGradient as any}
@@ -172,14 +172,16 @@ export default function Search() {
                                         <Text style={styles.buttonText}>Envoyer un message</Text>
                                     </LinearGradient>
                                 </TouchableOpacity>
-                            ) : (
-                                <View style={styles.notRegisteredContainer}>
-                                    <Ionicons name="information-circle-outline" size={20} color={COLORS.textSecondary} style={styles.infoIcon} />
-                                    <Text style={styles.notRegisteredText}>Ce véhicule n'est pas inscrit sur Plaq'Up.</Text>
-                                </View>
-                            )}
-                        </View>
-                    )}
+                            </View>
+                        ) : (
+                            <View style={styles.notRegisteredContainer}>
+                                <Ionicons name="search-outline" size={24} color={COLORS.textSecondary} style={styles.infoIcon} />
+                                <Text style={styles.notRegisteredText}>
+                                    Aucun utilisateur associé à la plaque {vehicle.data?.immatriculation || resultPlate} n'a été trouvé dans la communauté.
+                                </Text>
+                            </View>
+                        )
+                    ) : null}
 
                     <Modal visible={showScanner} animationType="slide" onRequestClose={() => setShowScanner(false)}>
                         <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
