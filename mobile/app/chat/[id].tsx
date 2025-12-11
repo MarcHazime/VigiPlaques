@@ -73,9 +73,10 @@ export default function Chat() {
         // Listen for messages
         socket.on('receive_message', (message) => {
             // Filter: Only show if it matches relatedPlate or if general
-            if (relatedPlate && message.relatedPlate && message.relatedPlate !== relatedPlate) {
-                return;
-            }
+            // Filter removed to show unified conversation
+            // if (relatedPlate && message.relatedPlate && message.relatedPlate !== relatedPlate) {
+            //     return;
+            // }
 
             setMessages((prev) => {
                 const exists = prev.some(m => m.id === message.id || (m.tempId && m.tempId === message.tempId));
@@ -101,6 +102,10 @@ export default function Chat() {
         try {
             const history = await api.getChatHistory(user.id, id, relatedPlate);
             setMessages(history);
+
+            // Mark as read
+            await api.markMessagesAsRead(user.id, id);
+
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
         } catch (error) {
             console.error(error);
@@ -275,34 +280,76 @@ export default function Chat() {
                 data={messages}
                 keyExtractor={(item, index) => item.id || index.toString()}
                 contentContainerStyle={styles.listContent}
-                renderItem={({ item }) => {
+                renderItem={({ item, index }) => {
                     const isMe = item.senderId === user?.id;
                     const imageUrl = item.imageUrl ? api.getUploadUrl(item.imageUrl) : null;
 
+                    // Date Separator Logic
+                    const currentDate = new Date(item.createdAt);
+                    const prevMessage = messages[index - 1];
+                    const prevDate = prevMessage ? new Date(prevMessage.createdAt) : null;
+
+                    const showDateHeader = !prevDate ||
+                        currentDate.getDate() !== prevDate.getDate() ||
+                        currentDate.getMonth() !== prevDate.getMonth() ||
+                        currentDate.getFullYear() !== prevDate.getFullYear();
+
+                    const dateHeaderFormat = (date: Date) => {
+                        const today = new Date();
+                        const yesterday = new Date();
+                        yesterday.setDate(today.getDate() - 1);
+
+                        if (date.toDateString() === today.toDateString()) return "Aujourd'hui";
+                        if (date.toDateString() === yesterday.toDateString()) return "Hier";
+                        return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+                    };
+
+                    const timeFormat = (date: Date) => {
+                        return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                    };
+
                     return (
-                        <View style={[
-                            styles.messageWrapper,
-                            isMe ? styles.sentWrapper : styles.receivedWrapper
-                        ]}>
+                        <View>
+                            {showDateHeader && (
+                                <View style={{ alignItems: 'center', marginVertical: 12 }}>
+                                    <View style={{ backgroundColor: '#E2E8F0', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+                                        <Text style={{ fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' }}>
+                                            {dateHeaderFormat(currentDate)}
+                                        </Text>
+                                    </View>
+                                </View>
+                            )}
+
                             <View style={[
-                                styles.message,
-                                isMe ? styles.sent : styles.received
+                                styles.messageWrapper,
+                                isMe ? styles.sentWrapper : styles.receivedWrapper
                             ]}>
-                                {imageUrl && (
-                                    <TouchableOpacity onPress={() => openImage(imageUrl)}>
-                                        <Image
-                                            source={{ uri: imageUrl }}
-                                            style={styles.messageImage}
-                                            resizeMode="cover"
-                                        />
-                                    </TouchableOpacity>
-                                )}
-                                {item.content ? (
+                                <View style={[
+                                    styles.message,
+                                    isMe ? styles.sent : styles.received
+                                ]}>
+                                    {imageUrl && (
+                                        <TouchableOpacity onPress={() => openImage(imageUrl)}>
+                                            <Image
+                                                source={{ uri: imageUrl }}
+                                                style={styles.messageImage}
+                                                resizeMode="cover"
+                                            />
+                                        </TouchableOpacity>
+                                    )}
+                                    {item.content ? (
+                                        <Text style={[
+                                            styles.messageText,
+                                            isMe ? styles.sentText : styles.receivedText
+                                        ]}>{item.content}</Text>
+                                    ) : null}
                                     <Text style={[
-                                        styles.messageText,
-                                        isMe ? styles.sentText : styles.receivedText
-                                    ]}>{item.content}</Text>
-                                ) : null}
+                                        styles.timestamp,
+                                        isMe ? styles.sentTimestamp : styles.receivedTimestamp
+                                    ]}>
+                                        {timeFormat(currentDate)}
+                                    </Text>
+                                </View>
                             </View>
                         </View>
                     );
@@ -410,12 +457,23 @@ const styles = StyleSheet.create({
     },
     messageText: {
         fontSize: 16,
+        marginBottom: 4,
     },
     sentText: {
         color: COLORS.surface,
     },
     receivedText: {
         color: COLORS.text,
+    },
+    timestamp: {
+        fontSize: 10,
+        alignSelf: 'flex-end',
+    },
+    sentTimestamp: {
+        color: 'rgba(255, 255, 255, 0.7)',
+    },
+    receivedTimestamp: {
+        color: COLORS.textSecondary,
     },
     messageImage: {
         width: 200,

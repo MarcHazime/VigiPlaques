@@ -119,9 +119,16 @@ export default function Chats() {
                         </View>
                         <View style={styles.itemContent}>
                             <Text style={styles.plate}>{item.otherDisplay}</Text>
-                            {/* <Text style={styles.contextLabel}>Concerne: {item.relatedPlate}</Text> */}
-                            <Text style={styles.subtitle} numberOfLines={1}>{item.lastMessage || 'Appuyez pour voir'}</Text>
+                            <Text style={[
+                                styles.subtitle,
+                                item.unreadCount > 0 && { fontWeight: 'bold', color: COLORS.text }
+                            ]} numberOfLines={1}>{item.lastMessage || 'Appuyez pour voir'}</Text>
                         </View>
+                        {item.unreadCount > 0 && (
+                            <View style={styles.unreadBadge}>
+                                <Text style={styles.unreadText}>{item.unreadCount}</Text>
+                            </View>
+                        )}
                         <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
                     </TouchableOpacity>
                 )}
@@ -226,8 +233,20 @@ const styles = StyleSheet.create({
         marginTop: SPACING.xl * 2,
     },
     emptyText: {
-        marginTop: SPACING.m,
-        fontSize: 16,
         color: COLORS.textSecondary,
+    },
+    unreadBadge: {
+        backgroundColor: COLORS.primary,
+        borderRadius: RADIUS.full,
+        width: 24,
+        height: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: SPACING.s,
+    },
+    unreadText: {
+        color: COLORS.surface,
+        fontSize: 12,
+        fontWeight: 'bold',
     },
 });

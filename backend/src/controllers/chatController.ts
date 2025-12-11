@@ -15,9 +15,9 @@ export const getChatHistory = async (req: Request, res: Response) => {
             ]
         };
 
-        if (relatedPlate) {
-            whereClause.relatedPlate = relatedPlate;
-        }
+        // if (relatedPlate) {
+        //     whereClause.relatedPlate = relatedPlate;
+        // }
 
         const finalMessages = await prisma.message.findMany({
             where: whereClause,
@@ -100,7 +100,8 @@ export const getUserChats = async (req: Request, res: Response) => {
             const isSender = msg.senderId === userId;
             const partner = isSender ? msg.receiver : msg.sender;
             const plate = msg.relatedPlate || 'Unknown';
-            const key = `${partner.id}_${plate}`;
+            // Group by User only to avoid duplicates
+            const key = partner.id;
 
             if (!conversations.has(key)) {
                 // Determine My Scope (Which of my plates is this about?)
@@ -128,12 +129,66 @@ export const getUserChats = async (req: Request, res: Response) => {
                     lastMessage: msg.content,
                     timestamp: msg.createdAt,
                     myScope, // Frontend will use this to group in tabs
-                    otherDisplay // Frontend will use this as Title
+                    otherDisplay, // Frontend will use this as Title
+                    unreadCount: 0 // Initialize
                 });
+            }
+
+            // Increment unread count if message is received, not read, and not deleted
+            if (!isSender && !msg.isRead && !msg.deletedByReceiver) {
+                const conv = conversations.get(key);
+                conv.unreadCount += 1;
             }
         }
 
+        // Increment unread count if message is received, not read, and not deleted
+        if (!isSender && !msg.isRead && !msg.deletedByReceiver) {
+            const conv = conversations.get(key);
+            conv.unreadCount += 1;
+        }
+    }
+
         res.json(Array.from(conversations.values()));
+} catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+}
+}
+
+export const markMessagesAsRead = async (req: Request, res: Response) => {
+    const { userId, partnerId } = req.params;
+
+    try {
+        await prisma.message.updateMany({
+            where: {
+                receiverId: userId,
+                senderId: partnerId,
+                isRead: false
+            },
+            data: { isRead: true }
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+export const markMessagesAsRead = async (req: Request, res: Response) => {
+    const { userId, partnerId } = req.params;
+
+    try {
+        await prisma.message.updateMany({
+            where: {
+                receiverId: userId,
+                senderId: partnerId,
+                isRead: false
+            },
+            data: { isRead: true }
+        });
+
+        res.json({ success: true });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });

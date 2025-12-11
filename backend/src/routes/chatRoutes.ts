@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getChatHistory, getUserChats, uploadImage, deleteConversation } from '../controllers/chatController';
+import { getChatHistory, getUserChats, uploadImage, deleteConversation, markMessagesAsRead } from '../controllers/chatController';
 import multer from 'multer';
 import path from 'path';
 
@@ -20,5 +20,6 @@ router.get('/history/:userId1/:userId2', getChatHistory);
 router.get('/list/:userId', getUserChats);
 router.post('/upload', upload.single('image'), uploadImage);
 router.delete('/:userId/:partnerId', deleteConversation);
+router.put('/read/:userId/:partnerId', markMessagesAsRead);
 
 export default router;

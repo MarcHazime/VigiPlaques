@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "202720024184",
+    "project_id": "plaq-up",
+    "storage_bucket": "plaq-up.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:202720024184:android:91d8e774de0328dee7ff8d",
+        "android_client_info": {
+          "package_name": "com.anonymous.plaqup"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEAy5noXjH6EXj8kA2tLhoxmchxErmoSM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

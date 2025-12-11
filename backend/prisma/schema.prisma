@@ -58,6 +58,7 @@ model Message {
 
   relatedPlate String? // To track which vehicle the conversation is about
 
+  isRead          Boolean @default(false)
   deletedBySender   Boolean @default(false)
   deletedByReceiver Boolean @default(false)
 }

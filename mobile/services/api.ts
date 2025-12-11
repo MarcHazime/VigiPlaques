@@ -184,6 +184,14 @@ export const api = {
         return response.json();
     },
 
+    async markMessagesAsRead(userId: string, partnerId: string) {
+        const response = await fetch(`${BASE_URL}/chats/read/${userId}/${partnerId}`, {
+            method: 'PUT',
+        });
+        if (!response.ok) throw new Error('Failed to mark messages as read');
+        return response.json();
+    },
+
     async updatePushToken(userId: string, pushToken: string) {
         const response = await fetch(`${BASE_URL}/users/${userId}/push-token`, {
             method: 'PUT',
