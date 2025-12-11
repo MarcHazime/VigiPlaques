@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useAuth } from '../../context/auth';
@@ -35,6 +35,7 @@ export default function Register() {
             }
         } catch (err: any) {
             setError(err.message);
+            Alert.alert("Erreur d'inscription", err.message);
         }
     };
 

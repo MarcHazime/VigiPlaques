@@ -78,7 +78,13 @@ export const register = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Registration Error:', error);
-        res.status(500).json({ error: error.message || 'Erreur interne du serveur' });
+        console.error('Registration Error:', error);
+        // Return a more specific error if email failed
+        if (error.code === 'EAUTH' || error.responseCode === 535) {
+            res.status(500).json({ error: "Impossible d'envoyer l'email. Vérifiez les paramètres SMTP." });
+        } else {
+            res.status(500).json({ error: error.message || 'Erreur interne du serveur' });
+        }
     }
 };
 
