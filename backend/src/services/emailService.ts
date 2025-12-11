@@ -8,6 +8,10 @@ const transporter = nodemailer.createTransport({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
+    // Force IPv4 to avoid IPv6 issues on some cloud providers
+    family: 4,
+    logger: true,
+    debug: true,
 });
 
 export const sendEmail = async (to: string, subject: string, text: string) => {
