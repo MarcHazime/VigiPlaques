@@ -24,6 +24,19 @@ const app = express();
 // Required for Railway/Heroku to correctly identify IP behind proxy
 app.set('trust proxy', 1);
 
+app.use(cors());
+
+// --- DEBUG EMAIL ROUTE ---
+import { sendEmail } from './services/emailService';
+app.get('/test-email', async (req, res) => {
+    try {
+        await sendEmail('marchazime@gmail.com', 'Test SMTP', 'Ceci est un test de connexion SMTP depuis Railway.');
+        res.send('Email envoyé avec succès !');
+    } catch (error: any) {
+        res.status(500).send(`Erreur SMTP: ${error.message} (Code: ${error.code})`);
+    }
+});
+// -------------------------
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
