@@ -141,19 +141,12 @@ export const getUserChats = async (req: Request, res: Response) => {
             }
         }
 
-        // Increment unread count if message is received, not read, and not deleted
-        if (!isSender && !msg.isRead && !msg.deletedByReceiver) {
-            const conv = conversations.get(key);
-            conv.unreadCount += 1;
-        }
-    }
-
         res.json(Array.from(conversations.values()));
-} catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
-}
-}
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
 
 export const markMessagesAsRead = async (req: Request, res: Response) => {
     const { userId, partnerId } = req.params;
@@ -173,27 +166,7 @@ export const markMessagesAsRead = async (req: Request, res: Response) => {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
     }
-}
-
-export const markMessagesAsRead = async (req: Request, res: Response) => {
-    const { userId, partnerId } = req.params;
-
-    try {
-        await prisma.message.updateMany({
-            where: {
-                receiverId: userId,
-                senderId: partnerId,
-                isRead: false
-            },
-            data: { isRead: true }
-        });
-
-        res.json({ success: true });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-}
+};
 
 interface MulterRequest extends Request {
     file?: Express.Multer.File;
