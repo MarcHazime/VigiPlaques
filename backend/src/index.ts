@@ -20,6 +20,10 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 const app = express();
+
+// Required for Railway/Heroku to correctly identify IP behind proxy
+app.set('trust proxy', 1);
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
