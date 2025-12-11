@@ -29,11 +29,15 @@ app.use(cors());
 // --- DEBUG EMAIL ROUTE ---
 import { sendEmail } from './services/emailService';
 app.get('/test-email', async (req, res) => {
+    const port = parseInt(process.env.SMTP_PORT || '587');
+    const isSecure = port === 465;
+    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+
     try {
-        await sendEmail('marchazime@gmail.com', 'Test SMTP', 'Ceci est un test de connexion SMTP depuis Railway.');
-        res.send('Email envoyé avec succès !');
+        await sendEmail('marchazime@gmail.com', `Test SMTP (${port})`, 'Ceci est un test.');
+        res.send(`SUCCÈS ! Email envoyé via ${host}:${port} (Secure: ${isSecure})`);
     } catch (error: any) {
-        res.status(500).send(`Erreur SMTP: ${error.message} (Code: ${error.code})`);
+        res.status(500).send(`ÉCHEC via ${host}:${port} (Secure: ${isSecure}) - Erreur: ${error.message} (Code: ${error.code})`);
     }
 });
 // -------------------------
