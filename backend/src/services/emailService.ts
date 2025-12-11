@@ -3,10 +3,13 @@ import nodemailer from 'nodemailer';
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: parseInt(process.env.SMTP_PORT || '587') === 465, // true for 465, false for other ports
+    secure: false, // Must be false for port 587 (STARTTLS)
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
+    },
+    tls: {
+        rejectUnauthorized: false
     },
     // Force IPv4 to avoid IPv6 issues on some cloud providers
     family: 4,
