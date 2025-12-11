@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
     family: 4,
     logger: true,
     debug: true,
-});
+} as any);
 
 export const sendEmail = async (to: string, subject: string, text: string) => {
     // If no SMTP credentials, fallback to console (Dev Mode)
