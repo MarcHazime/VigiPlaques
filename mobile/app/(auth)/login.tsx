@@ -7,6 +7,8 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { formatPlate } from '../../utils/formatting';
+
 export default function Login() {
     const router = useRouter();
     const { signIn } = useAuth();
@@ -56,7 +58,7 @@ export default function Login() {
                                 placeholder="XX-123-XX"
                                 placeholderTextColor={COLORS.textSecondary}
                                 value={plate}
-                                onChangeText={setPlate}
+                                onChangeText={(text) => setPlate(formatPlate(text))}
                                 autoCapitalize="characters"
                             />
                         </View>
