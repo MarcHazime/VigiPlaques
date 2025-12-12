@@ -1,6 +1,6 @@
 import { Camera, useCameraDevice, useFrameProcessor, VisionCameraProxy } from 'react-native-vision-camera';
-import { StyleSheet, Text, View, TouchableOpacity, Platform } from 'react-native';
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Platform, AppState, AppStateStatus } from 'react-native';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { Worklets } from 'react-native-worklets-core';
@@ -18,6 +18,8 @@ const plugin = VisionCameraProxy.initFrameProcessorPlugin('scanText', {
     useLightweightMode: false, // Disable lightweight to improve accuracy
     frameSkipThreshold: 5, // Check more frequently (every 5th frame instead of 15th)
 });
+
+console.log('Scan Text Plugin initialized:', plugin); // <--- DEBUG LOG
 
 const RealScanner = ({ onScan, onClose }: ScannerProps) => {
     const device = useCameraDevice('back');
@@ -188,7 +190,7 @@ const RealScanner = ({ onScan, onClose }: ScannerProps) => {
             <Camera
                 style={StyleSheet.absoluteFill}
                 device={device}
-                isActive={true}
+                isActive={isActive} // <--- Use dynamic active state
                 frameProcessor={frameProcessor}
                 pixelFormat="yuv"
             />
