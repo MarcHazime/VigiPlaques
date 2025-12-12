@@ -19,7 +19,7 @@ const plugin = VisionCameraProxy.initFrameProcessorPlugin('scanText', {
     frameSkipThreshold: 5, // Check more frequently (every 5th frame instead of 15th)
 });
 
-console.log('Scan Text Plugin initialized:', plugin); // <--- DEBUG LOG
+
 
 const RealScanner = ({ onScan, onClose }: ScannerProps) => {
     const device = useCameraDevice('back');
@@ -154,7 +154,7 @@ const RealScanner = ({ onScan, onClose }: ScannerProps) => {
                     // Try to stitch blocks if single block is too short? 
                     // For now, let's trust the primary block or resultText
 
-                    console.log(`[Scanner] Candidate found: "${fullText}" at (${winner.cx.toFixed(0)}, ${winner.cy.toFixed(0)})`);
+
                 } else {
                     // console.log(`[Scanner] No valid candidates in ROI (${candidates.length} raw)`);
                 }
