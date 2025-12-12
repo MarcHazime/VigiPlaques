@@ -24,6 +24,21 @@ const RealScanner = ({ onScan, onClose }: ScannerProps) => {
     const [hasPermission, setHasPermission] = useState(false);
     const [debugInfo, setDebugInfo] = useState<string>('');
 
+    // Lifecycle management to prevent "Camera Restricted" errors
+    const appState = useRef(AppState.currentState);
+    const [isActive, setIsActive] = useState(AppState.currentState === 'active');
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            appState.current = nextAppState;
+            setIsActive(nextAppState === 'active');
+        });
+
+        return () => {
+            subscription.remove();
+        };
+    }, []);
+
     // Strict validator for French SIV plates (AA-123-AA)
     const processResult = useCallback((rawText: string) => {
         const lines = rawText.split('\n');
@@ -97,17 +112,17 @@ const RealScanner = ({ onScan, onClose }: ScannerProps) => {
 
                 // PHASE 2: Filter by ROI & Calculate Distance
                 const validCandidates = candidates.map((c: any) => {
-                    const { cx, cy } = c;
+                    const { cx, cy, data } = c;
                     const fw = frame.width;
                     const fh = frame.height;
 
-                    // CALIBRATED CENTER (Based on user device feedback)
-                    const TARGET_X = 330;
-                    const TARGET_Y = 20;
+                    // DYNAMIC CENTER: Use the actual center of the camera frame
+                    const TARGET_X = fw / 2;
+                    const TARGET_Y = fh / 2;
 
-                    // Strict ROI Validation (Sniper Mode)
-                    const TOLERANCE_X = 50;
-                    const TOLERANCE_Y = 20;
+                    // Relaxed Validation: Accept text from mostly anywhere, but prioritize center
+                    const TOLERANCE_X = fw * 0.45; // 90% of width
+                    const TOLERANCE_Y = fh * 0.45; // 90% of height
 
                     const minX = TARGET_X - TOLERANCE_X;
                     const maxX = TARGET_X + TOLERANCE_X;
@@ -116,7 +131,7 @@ const RealScanner = ({ onScan, onClose }: ScannerProps) => {
 
                     if (cx < minX || cx > maxX || cy < minY || cy > maxY) return null;
 
-                    // Calculate distance from CALIBRATED center
+                    // Calculate distance from center for sorting
                     const distSq = Math.pow(cx - TARGET_X, 2) + Math.pow(cy - TARGET_Y, 2);
 
                     return { ...c, distSq };
@@ -124,7 +139,7 @@ const RealScanner = ({ onScan, onClose }: ScannerProps) => {
 
                 // PHASE 3: Sort & Select Winner
                 if (validCandidates.length > 0) {
-                    // Sort by distance ascending (closest to calibrated center first)
+                    // Sort by distance ascending (closest to center first)
                     validCandidates.sort((a: any, b: any) => a.distSq - b.distSq);
 
                     const winner = validCandidates[0];
@@ -132,14 +147,15 @@ const RealScanner = ({ onScan, onClose }: ScannerProps) => {
 
                     if (d.resultText) fullText = d.resultText;
                     else if (d.text) fullText = d.text;
-                    else if (Array.isArray(d.blocks) && d.blocks.length > 4) fullText = d.blocks[4];
+                    else if (Array.isArray(d.blocks) && d.blocks.length > 0) fullText = d.blocks[0]?.text || d.blocks[0]?.blockText || ""; // Start with first block
 
-                    // const winnerText = fullText || '???'; // Debug info removed
-                    // debugStr = `Locked: ${winnerText.substring(0, 5)}... (Dist: ${Math.sqrt(winner.distSq).toFixed(0)})`; // Debug info removed
+                    // Try to stitch blocks if single block is too short? 
+                    // For now, let's trust the primary block or resultText
+
+                    console.log(`[Scanner] Candidate found: "${fullText}" at (${winner.cx.toFixed(0)}, ${winner.cy.toFixed(0)})`);
+                } else {
+                    // console.log(`[Scanner] No valid candidates in ROI (${candidates.length} raw)`);
                 }
-                // else { // Debug info removed
-                //     debugStr = candidates.length > 0 ? 'Out of Focus' : 'No Valid Text'; // Debug info removed
-                // } // Debug info removed
             }
             // FALLBACK REMOVED: If data is not an array or has no coords, we IGNORE it.
             // This prevents "scanning everything" when the structure is flat.
